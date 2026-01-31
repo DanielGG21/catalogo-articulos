@@ -2,14 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase'; //
 import { useNavigate } from 'react-router-dom'; //
 import type { Articulo } from '../types';
-import CsvActions from '../components/CsvActions';
-
 
 const SHEET_ANIM_MS = 300;
 
 // --- COMPONENTE ADMIN ---
 export default function Admin() {
-  
   const [articulos, setarticulos] = useState<Articulo[]>([]);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true); // AGREGADO: Estado para evitar que se vea el panel antes de validar
@@ -20,7 +17,6 @@ export default function Admin() {
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const lastActiveElRef = useRef<HTMLElement | null>(null);
   const navigate = useNavigate();
-
 
   const [formulario, setFormulario] = useState({
     nombre: '', marca: '', modelo: '', precio: null as number | null, stock: null as number | null, descripcion: '', imagen_url: '', categoria: '', link: ''
@@ -87,7 +83,6 @@ export default function Admin() {
     const { data } = await supabase.from('articulos').select('*').order('id', { ascending: false });
     if (data) setarticulos(data);
   }
-  
 
   // --- FUNCIÓN PARA ELIMINAR (Sin cambios) ---
   const eliminarProducto = async (id: number) => {
@@ -158,7 +153,6 @@ export default function Admin() {
       </div>
     );
   }
-  
 
   // Calcular estadísticas
   const totalProductos = articulos.length;
@@ -179,69 +173,59 @@ export default function Admin() {
   const paginaSegura = Math.min(Math.max(1, paginaActual), totalPaginas);
   const indiceInicio = (paginaSegura - 1) * ITEMS_POR_PAGINA;
   const articulosPagina = articulosFiltrados.slice(indiceInicio, indiceInicio + ITEMS_POR_PAGINA);
-  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-2 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Mensajes accesibles (WCAG 4.1.3) */}
         <div role="status" aria-live="polite" className="sr-only">
           {mensaje ?? ''}
         </div>
         {mensaje && (
-          <div className="mb-4 sm:mb-6 rounded-xl border border-blue-200 bg-blue-50 px-3 sm:px-4 py-3 text-blue-800 text-sm sm:text-base">
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800">
             {mensaje}
           </div>
         )}
-
+        
         {/* Header Mejorado */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="mb-4 sm:mb-6">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
+          <div className="mb-6">
+            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
               Panel de Control
             </h1>
-            <p className="text-gray-500 text-sm sm:text-base">Gestión completa de inventario</p>
+            <p className="text-gray-500">Gestión completa de inventario</p>
           </div>
 
           {/* Estadísticas Rápidas */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2 font-medium">Total Productos</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">{totalProductos}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <p className="text-sm text-gray-500 mb-2 font-medium">Total Productos</p>
+              <p className="text-3xl font-bold text-gray-800">{totalProductos}</p>
             </div>
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2 font-medium">Stock Total</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">{totalStock}</p>
+            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <p className="text-sm text-gray-500 mb-2 font-medium">Stock Total</p>
+              <p className="text-3xl font-bold text-gray-800">{totalStock}</p>
             </div>
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2 font-medium">Valor Inventario</p>
-              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">${valorInventario.toLocaleString()}</p>
+            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <p className="text-sm text-gray-500 mb-2 font-medium">Valor Inventario</p>
+              <p className="text-2xl font-bold text-gray-800">${valorInventario.toLocaleString()}</p>
             </div>
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2 font-medium">Sin Stock</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">{productosSinStock}</p>
+            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <p className="text-sm text-gray-500 mb-2 font-medium">Sin Stock</p>
+              <p className="text-3xl font-bold text-gray-800">{productosSinStock}</p>
             </div>
           </div>
+        </div>
 
-          {/* Botones de Acción */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <button
-              onClick={abrirNuevoProducto}
-              type="button"
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <span>➕</span> Nuevo Producto
-            </button>
-
-            <CsvActions
-              articulos={articulos}
-              onImportSuccess={(msg) => {
-                setMensaje(msg);
-                fetcharticulos(); // Refresca la tabla
-              }}
-              onImportError={(err) => setMensaje(err)}
-            />
-          </div>
+        {/* Botón para abrir side sheet - Nuevo Producto */}
+        <div className="mb-6">
+          <button
+            onClick={abrirNuevoProducto}
+            type="button"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all flex items-center gap-2"
+          >
+            <span>➕</span> Nuevo Producto
+          </button>
         </div>
 
         {/* Side Sheet - Overlay */}
@@ -255,16 +239,16 @@ export default function Admin() {
 
         {/* Side Sheet - Panel */}
         <div 
-          className={`fixed top-0 right-0 h-full w-full max-w-sm sm:max-w-md md:max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out motion-reduce:transition-none overflow-y-auto ${
+          className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out motion-reduce:transition-none overflow-y-auto ${
             bottomSheetAbierto ? 'translate-x-0' : 'translate-x-full pointer-events-none'
           }`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="side-sheet-title"
         >
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
             <div>
-              <h2 id="side-sheet-title" className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">
+              <h2 id="side-sheet-title" className="text-2xl font-bold text-gray-800">
                 {editandoId ? (
                   <span className="flex items-center gap-2">
                     <span className="text-orange-500">✏️</span> Editando Producto
@@ -275,7 +259,7 @@ export default function Admin() {
                   </span>
                 )}
               </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1">
                 {editandoId ? 'Modifica los datos del producto seleccionado' : 'Completa todos los campos para agregar un nuevo artículo'}
               </p>
             </div>
@@ -283,14 +267,14 @@ export default function Admin() {
               onClick={cerrarBottomSheet}
               type="button"
               ref={closeBtnRef}
-              className="text-gray-500 hover:text-gray-700 font-bold text-xl sm:text-2xl w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-gray-500 hover:text-gray-700 font-bold text-2xl w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Cerrar panel"
             >
               ×
             </button>
           </div>
 
-          <div className="p-4 sm:p-6 md:p-8">
+          <div className="p-6 md:p-8">
           <form onSubmit={guardarCambios} className="space-y-6" aria-describedby="form-ayuda">
             <p id="form-ayuda" className="sr-only">
               Completa los campos obligatorios marcados con asterisco y guarda el producto.
@@ -440,13 +424,13 @@ export default function Admin() {
             {formulario.imagen_url && (
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">Vista Previa de Imagen</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-3 sm:p-4 bg-gray-50 flex justify-center">
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 flex justify-center">
                   <img 
                     src={formulario.imagen_url} 
                     alt="Preview" 
-                    className="max-h-32 sm:max-h-48 rounded-lg shadow-md object-cover"
+                    className="max-h-48 rounded-lg shadow-md object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Imagen+no+disponible';
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Imagen+no+disponible';
                     }}
                   />
                 </div>
@@ -494,16 +478,16 @@ export default function Admin() {
         </div>
 
         {/* Lista de Productos Mejorada */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="p-6 border-b border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <span></span> Inventario de Productos
               </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">Gestiona todos tus productos desde aquí</p>
+              <p className="text-sm text-gray-500 mt-1">Gestiona todos tus productos desde aquí</p>
             </div>
             {/* Buscador */}
-            <div className="w-full md:max-w-xs">
+            <div className="w-full max-w-xs">
               <label htmlFor="buscador-productos" className="sr-only">
                 Buscar productos por nombre, marca, modelo o categoría
               </label>
@@ -527,75 +511,75 @@ export default function Admin() {
           </div>
 
           {articulosFiltrados.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center">
-              <div className="text-4xl sm:text-6xl mb-4">📭</div>
-              <p className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">No hay productos registrados</p>
-              <p className="text-sm sm:text-base text-gray-500">Comienza agregando tu primer producto usando el formulario de arriba</p>
+            <div className="p-12 text-center">
+              <div className="text-6xl mb-4">📭</div>
+              <p className="text-xl font-semibold text-gray-600 mb-2">No hay productos registrados</p>
+              <p className="text-gray-500">Comienza agregando tu primer producto usando el formulario de arriba</p>
             </div>
           ) : (
             <>
-            <div className="overflow-x-auto text-xs sm:text-sm">
-              <table className="w-full min-w-[800px] table-fixed">
+            <div className="overflow-x-auto text-sm">
+              <table className="w-full table-fixed">
                 <caption className="sr-only">
                   Inventario de productos con acciones para editar y eliminar.
                 </caption>
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-12 sm:w-16">ID</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-20 sm:w-24">Imagen</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Producto</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Marca/Modelo</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Categoría</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Precio</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Stock</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-32 sm:w-56">Descripción</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-20 sm:w-28">Link</th>
-                    <th scope="col" className="p-2 sm:p-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-right w-32 sm:w-40">Acciones</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">ID</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Imagen</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Producto</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Marca/Modelo</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Categoría</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Precio</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Stock</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-56">Descripción</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-28">Link</th>
+                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-right w-40">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {articulosPagina.map((art) => (
                     <tr key={art.id} className="hover:bg-blue-50 transition-colors">
-                      <td className="p-2 sm:p-4">
-                        <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-100 text-gray-700 font-semibold text-xs sm:text-sm">
+                      <td className="p-4">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-semibold text-sm">
                           {art.id}
                         </span>
                       </td>
-                      <td className="p-2 sm:p-4">
+                      <td className="p-4">
                         {art.imagen_url ? (
                           <img 
                             src={art.imagen_url} 
                             alt={art.nombre} 
-                            className="w-12 h-12 sm:w-20 sm:h-20 object-cover rounded-lg sm:rounded-xl shadow-md border-2 border-gray-200" 
+                            className="w-20 h-20 object-cover rounded-xl shadow-md border-2 border-gray-200" 
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80?text=Sin+imagen';
                             }}
                           />
                         ) : (
-                          <div className="w-12 h-12 sm:w-20 sm:h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg sm:rounded-xl flex items-center justify-center text-xs text-gray-500 font-semibold shadow-inner">
+                          <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center text-xs text-gray-500 font-semibold shadow-inner">
                             Sin imagen
                           </div>
                         )}
                       </td>
-                      <td className="p-2 sm:p-4">
-                        <p className="font-bold text-gray-800 text-xs sm:text-sm">{art.nombre}</p>
+                      <td className="p-4">
+                        <p className="font-bold text-gray-800 text-sm">{art.nombre}</p>
                       </td>
-                      <td className="p-2 sm:p-4">
-                        <p className="text-xs sm:text-sm font-semibold text-gray-700">{art.marca}</p>
+                      <td className="p-4">
+                        <p className="text-sm font-semibold text-gray-700">{art.marca}</p>
                         <p className="text-xs text-gray-500">{art.modelo}</p>
                       </td>
-                      <td className="p-2 sm:p-4">
-                        <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs">
+                      <td className="p-4">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs">
                           {art.categoria || 'Sin categoría'}
                         </span>
                       </td>
-                      <td className="p-2 sm:p-4">
-                        <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full bg-green-100 text-green-700 font-bold text-xs sm:text-sm">
+                      <td className="p-4">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold text-sm">
                           ${art.precio.toLocaleString()}
                         </span>
                       </td>
-                      <td className="p-2 sm:p-4">
-                        <span className={`inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full font-semibold text-xs sm:text-sm ${
+                      <td className="p-4">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm ${
                           art.stock > 0 
                             ? 'bg-blue-100 text-blue-700' 
                             : 'bg-red-100 text-red-700'
@@ -603,18 +587,18 @@ export default function Admin() {
                           {art.stock > 0 ? `✓ ${art.stock}` : '✗ Agotado'}
                         </span>
                       </td>
-                      <td className="p-2 sm:p-4 w-32 sm:w-56">
-                        <p className="text-xs sm:text-sm text-gray-600 max-w-[8rem] sm:max-w-[12rem] truncate" title={art.descripcion}>
+                      <td className="p-4 w-56">
+                        <p className="text-sm text-gray-600 max-w-[12rem] truncate" title={art.descripcion}>
                           {art.descripcion}
                         </p>
                       </td>
-                      <td className="p-2 sm:p-4 w-20 sm:w-28">
+                      <td className="p-4 w-28">
                         {art.link ? (
                           <a
                             href={art.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold underline whitespace-nowrap"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline whitespace-nowrap"
                           >
                             Ver link
                           </a>
@@ -622,17 +606,17 @@ export default function Admin() {
                           <span className="text-xs text-gray-400">Sin link</span>
                         )}
                       </td>
-                      <td className="p-2 sm:p-4 w-32 sm:w-40">
-                        <div className="flex flex-col sm:flex-row justify-end gap-1 sm:gap-2">
+                      <td className="p-4 w-40">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <button 
                             onClick={() => seleccionarParaEditar(art)} 
-                            className="min-w-[60px] sm:min-w-[88px] px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-xs transition-all shadow-md hover:shadow-lg"
+                            className="min-w-[88px] px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-xs md:text-sm transition-all shadow-md hover:shadow-lg"
                           >
                             Editar
                           </button>
                           <button 
                             onClick={() => eliminarProducto(art.id)} 
-                            className="min-w-[60px] sm:min-w-[88px] px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold text-xs transition-all shadow-md hover:shadow-lg"
+                            className="min-w-[88px] px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold text-xs md:text-sm transition-all shadow-md hover:shadow-lg"
                           >
                             Eliminar
                           </button>
@@ -643,21 +627,21 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
-              
+
             {/* Paginación */}
-            <div className="flex flex-col gap-2 sm:gap-3 px-3 sm:px-4 py-3 border-t border-gray-200 md:flex-row md:items-center md:justify-between text-xs sm:text-sm">
-              <p className="text-gray-600 text-center md:text-left">
+            <div className="flex flex-col gap-3 px-4 py-3 border-t border-gray-200 md:flex-row md:items-center md:justify-between text-sm">
+              <p className="text-gray-600">
                 Mostrando{' '}
                 {articulosFiltrados.length === 0 ? 0 : indiceInicio + 1}
                 {'–'}
                 {Math.min(indiceInicio + ITEMS_POR_PAGINA, articulosFiltrados.length)} de {articulosFiltrados.length} productos
               </p>
-              <div className="inline-flex items-center gap-1 sm:gap-2 justify-center md:justify-end">
+              <div className="inline-flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
                   disabled={paginaSegura === 1}
-                  className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-xs font-semibold ${
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
                     paginaSegura === 1
                       ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                       : 'border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -666,14 +650,14 @@ export default function Admin() {
                 >
                   Anterior
                 </button>
-                <span className="text-gray-600 text-xs px-2">
-                  {paginaSegura} de {totalPaginas}
+                <span className="text-gray-600 text-xs">
+                  Página {paginaSegura} de {totalPaginas}
                 </span>
                 <button
                   type="button"
                   onClick={() => setPaginaActual((prev) => Math.min(totalPaginas, prev + 1))}
                   disabled={paginaSegura === totalPaginas || articulosFiltrados.length === 0}
-                  className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-xs font-semibold ${
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
                     paginaSegura === totalPaginas || articulosFiltrados.length === 0
                       ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                       : 'border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -691,4 +675,3 @@ export default function Admin() {
     </div>
   );
 }
-

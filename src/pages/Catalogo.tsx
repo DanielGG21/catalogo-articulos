@@ -1,75 +1,45 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { supabase } from '../lib/supabase'
-import type { Articulo } from '../types'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { supabase } from '../lib/supabase' // Tu conexión
+import type { Articulo } from '../types'      // Tu interface
 
 const SHEET_ANIM_MS = 300;
-
+  
 function Catalogo() {
+  // 1. Definimos el ESTADO (como una propiedad privada en C# que refresca la vista al cambiar)
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // --- ESTADOS DE FILTRADO ---
-  const [precioMax, setPrecioMax] = useState<number>(1000);
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
-  const [busqueda, setBusqueda] = useState('');
-
-  // --- ESTADOS DE DETALLE ---
+  // Estado para el detalle ampliado
   const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [mostrarSheet, setMostrarSheet] = useState(false);
   const [copiado, setCopiado] = useState(false);
-
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const lastActiveElRef = useRef<HTMLElement | null>(null);
 
-  // Obtener categorías únicas para los filtros
-  const categoriasUnicas = useMemo(() => {
-    const cats = articulos.map(a => a.categoria).filter(Boolean);
-    return Array.from(new Set(cats));
-  }, [articulos]);
-
-  // Lógica de filtrado
-  const articulosFiltrados = useMemo(() => {
-    return articulos.filter(art => {
-      const coincideBusqueda = art.nombre.toLowerCase().includes(busqueda.toLowerCase());
-      const coincidePrecio = art.precio <= precioMax;
-      const coincideCategoria = categoriaSeleccionada ? art.categoria === categoriaSeleccionada : true;
-      return coincideBusqueda && coincidePrecio && coincideCategoria;
-    });
-  }, [articulos, busqueda, precioMax, categoriaSeleccionada]);
-
-  async function obtenerArticulos() {
-    try {
-      setCargando(true);
-      const { data, error } = await supabase.from('articulos').select('*');
-      if (error) throw error;
-      if (data) setArticulos(data);
-    } catch (error) {
-      console.error("Error cargando datos:", error);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  useEffect(() => { obtenerArticulos(); }, []);
-
-  // --- FUNCIONES DE DETALLE ---
   const abrirDetalles = useCallback((item: Articulo) => {
     lastActiveElRef.current = document.activeElement as HTMLElement | null;
     setArticuloSeleccionado(item);
     setMostrarSheet(true);
     setCopiado(false);
-    setTimeout(() => {
-      setDetalleAbierto(true);
-      closeBtnRef.current?.focus();
-    }, 10);
+    // Pequeño delay para que el navegador renderice primero en translate-x-full
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setDetalleAbierto(true);
+        // Mover foco al diálogo (WCAG 2.4.3 / 2.4.7)
+        window.setTimeout(() => closeBtnRef.current?.focus(), 0);
+      });
+    });
   }, []);
 
   const cerrarDetalles = useCallback(() => {
     setDetalleAbierto(false);
+    // Mantener montado el sheet durante la animación de cierre
     window.setTimeout(() => {
       setMostrarSheet(false);
       setArticuloSeleccionado(null);
+      setCopiado(false);
+      // Restaurar foco al elemento que abrió el diálogo
       lastActiveElRef.current?.focus?.();
     }, SHEET_ANIM_MS);
   }, []);
@@ -79,234 +49,295 @@ function Catalogo() {
     navigator.clipboard?.writeText(link).then(() => {
       setCopiado(true);
       window.setTimeout(() => setCopiado(false), 1500);
+    }).catch(() => {
+      // Fallback silencioso
+      const textarea = document.createElement('textarea');
+      textarea.value = link;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopiado(true);
+      window.setTimeout(() => setCopiado(false), 1500);
     });
   }, []);
 
-  // Cerrar con tecla Escape
+  // 2. Función para obtener los datos
+  async function obtenerArticulos() {
+    try {
+      setCargando(true);
+      const { data, error } = await supabase
+        .from('articulos') // Nombre de tu tabla
+        .select('*');     // Traer todas las columnas
+
+      if (error) throw error;
+      if (data) setArticulos(data);
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  // 3. useEffect: Se ejecuta automáticamente cuando la página carga
+  useEffect(() => {
+    obtenerArticulos();
+  }, []);
+
+  // Efecto para prevenir scroll del body y cerrar con Escape cuando el detalle está abierto
   useEffect(() => {
     if (detalleAbierto) {
-      const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrarDetalles(); };
+      document.body.style.overflow = 'hidden';
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') cerrarDetalles();
+      };
       document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
+      return () => {
+        document.body.style.overflow = 'unset';
+        document.removeEventListener('keydown', handleEscape);
+      };
+    } else {
+      document.body.style.overflow = 'unset';
     }
   }, [detalleAbierto, cerrarDetalles]);
 
-  if (cargando) return <div className="text-center mt-20 animate-pulse font-bold text-blue-600">Cargando catálogo...</div>;
+
+  if (cargando) return <div className="text-center mt-20">Cargando catálogo...</div>;
 
   return (
-    <main className="min-h-screen bg-white p-4 md:p-8">
-      <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row gap-8">
-        
-        {/* --- SIDEBAR DE FILTROS --- */}
-        <aside className="w-full md:w-72 flex-shrink-0 space-y-8">
-          <h2 className="text-2xl font-black text-gray-800 flex items-center justify-between">
-            Filtrar por <span className="text-sm">⚡</span>
-          </h2>
-          
-          <div className="space-y-8">
-            {/* Filtro Precio */}
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-              <div className="flex justify-between text-xs font-bold uppercase text-gray-400 mb-4">
-                <span>Rango máximo</span>
-                <span className="text-blue-600">${precioMax}</span>
-              </div>
-              <input 
-                type="range" min="0" max="2000" step="10"
-                value={precioMax}
-                onChange={(e) => setPrecioMax(Number(e.target.value))}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+    <main className="min-h-screen bg-gray-50 p-8" aria-label="Catálogo">
+      <header className="max-w-6xl mx-auto mb-10">
+        <h1 className="text-4xl font-extrabold text-gray-900">Catálogo de Artículos</h1>
+        <p className="text-gray-500">Explora nuestros productos disponibles</p>
+      </header>
+
+      {/* 4. GRID: Aquí mostramos los artículos */}
+
+      <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {articulos.map((item) => (
+          <div key={item.id} className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow overflow-hidden border border-gray-100">
+            {/* Imagen del artículo */}
+            <div className="h-48 overflow-hidden bg-gray-200">
+              <img 
+                src={item.imagen_url || 'https://via.placeholder.com/400'} 
+                alt={item.nombre}
+                className="w-full h-full object-cover"
               />
             </div>
-
-            {/* Filtro Categoría */}
-            <div>
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Categorías</h3>
-              <div className="flex flex-wrap gap-2">
+            
+            {/* Info del artículo */}
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">{item.nombre}</h3>
+                  <p className="text-sm text-blue-600 font-medium">{item.marca} - {item.modelo}</p>
+                </div>
+                <span className="bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full">
+                  ${item.precio}
+                </span>
+              </div>
+              
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                {item.descripcion}
+              </p>
+              
+              <div className="flex justify-between items-center border-t pt-4">
+                <span className={`text-sm font-semibold ${item.stock > 0 ? 'text-gray-500' : 'text-red-500'}`}>
+                  {item.stock > 0 ? `${item.stock} disponibles` : 'Agotado'}
+                </span>
                 <button 
-                  onClick={() => setCategoriaSeleccionada(null)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${!categoriaSeleccionada ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  onClick={() => abrirDetalles(item)}
+                  className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  aria-label={`Ver detalles de ${item.nombre}`}
                 >
-                  TODOS
+                  Ver detalles
                 </button>
-                {categoriasUnicas.map(cat => (
-                  <button 
-                    key={cat}
-                    onClick={() => setCategoriaSeleccionada(cat === categoriaSeleccionada ? null : cat)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${categoriaSeleccionada === cat ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Buscador Rápido */}
-            <div>
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Buscar producto</h3>
-              <div className="relative">
-                <input 
-                  type="text"
-                  placeholder="Escribe el nombre..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="w-full p-4 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                />
               </div>
             </div>
           </div>
-        </aside>
-
-        {/* --- GRID DE PRODUCTOS (4 COLUMNAS) --- */}
-        <section className="flex-1">
-          <header className="mb-8 flex justify-between items-end">
-            <div>
-              <h1 className="text-4xl font-black text-gray-900 mb-2">Catálogo</h1>
-              <p className="text-gray-400 font-medium">Mostrando {articulosFiltrados.length} artículos encontrados</p>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {articulosFiltrados.map((item) => (
-              <div 
-                key={item.id} 
-                className="group bg-white rounded-3xl border border-gray-100 p-4 hover:shadow-2xl hover:shadow-gray-200 transition-all duration-500"
-              >
-                <div className="aspect-square rounded-2xl bg-gray-50 overflow-hidden mb-4 relative">
-                  <img 
-                    src={item.imagen_url || 'https://via.placeholder.com/400'} 
-                    alt={item.nombre}
-                    className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute top-2 left-2">
-                    <span className="bg-white/80 backdrop-blur-md text-[10px] font-black px-2 py-1 rounded-lg uppercase text-gray-500 border border-white/50">
-                      {item.categoria || 'Gral'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] leading-tight uppercase">
-                    {item.nombre}
-                  </h3>
-                  <p className="text-lg font-black text-blue-600">${item.precio.toFixed(2)}</p>
-                  
-                  <button 
-                    onClick={() => abrirDetalles(item)}
-                    className="w-full py-3 mt-2 rounded-xl bg-gray-900 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300"
-                  >
-                    VER DETALLES
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {articulosFiltrados.length === 0 && (
-            <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-              <p className="text-gray-400 font-bold">No se encontraron productos con estos filtros</p>
-            </div>
-          )}
-        </section>
+        ))}
       </div>
 
-      {/* --- PANEL DE DETALLE (MUESTRA TODA LA INFO) --- */}
+      {/* Side Sheet (si hay artículo seleccionado) */}
       {mostrarSheet && articuloSeleccionado && (
         <>
-          <div 
-            className={`fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${detalleAbierto ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
-            onClick={cerrarDetalles} 
+          {/* Overlay */}
+          <div
+            className={`fixed inset-0 bg-black/10 z-40 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
+              detalleAbierto ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            onClick={cerrarDetalles}
+            aria-hidden="true"
           />
-          
-          <div className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-500 ease-out overflow-y-auto ${detalleAbierto ? 'translate-x-0' : 'translate-x-full'}`}>
-            <div className="sticky top-0 bg-white/80 backdrop-blur-md p-6 flex justify-between items-center border-b border-gray-100 z-10">
-              <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">Detalles del Artículo</h2>
-              <button 
-                onClick={cerrarDetalles} ref={closeBtnRef}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+
+          {/* Panel */}
+          <div
+            className={`fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out motion-reduce:transition-none overflow-y-auto ${
+              detalleAbierto ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+            }`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="detalle-producto-title"
+          >
+            {/* Header del Side Sheet */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10 shadow-sm">
+              <h2 id="detalle-producto-title" className="text-2xl font-bold text-gray-800">
+                Detalles del Producto
+              </h2>
+              <button
+                onClick={cerrarDetalles}
+                type="button"
+                ref={closeBtnRef}
+                className="text-gray-500 hover:text-gray-700 font-bold text-2xl w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Cerrar detalles"
               >
-                ✕
+                ×
               </button>
             </div>
 
-            <div className="p-8 space-y-8">
-              {/* Imagen Grande */}
-              <div className="w-full aspect-video bg-gray-50 rounded-3xl overflow-hidden border border-gray-100">
-                <img 
-                  src={articuloSeleccionado.imagen_url} 
-                  className="w-full h-full object-contain p-6" 
-                />
+            {/* Contenido del Side Sheet */}
+            <div className="p-6 md:p-8">
+              {/* Imagen Completa */}
+              <div className="mb-8">
+                <div className="w-full h-96 bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
+                  <img 
+                    src={articuloSeleccionado.imagen_url || 'https://via.placeholder.com/800x600'} 
+                    alt={articuloSeleccionado.nombre}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600?text=Imagen+no+disponible';
+                    }}
+                  />
+                </div>
               </div>
 
-              {/* Info Principal */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black uppercase mb-2 inline-block">
-                      {articuloSeleccionado.categoria || 'Sin categoría'}
-                    </span>
-                    <h3 className="text-3xl font-black text-gray-900 leading-tight">
-                      {articuloSeleccionado.nombre}
-                    </h3>
-                    <p className="text-lg text-gray-400 font-bold">
-                      {articuloSeleccionado.marca} — {articuloSeleccionado.modelo}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-4xl font-black text-blue-600">${articuloSeleccionado.precio.toLocaleString()}</p>
-                    <span className={`inline-block mt-2 px-3 py-1 rounded-lg text-xs font-bold ${articuloSeleccionado.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {articuloSeleccionado.stock > 0 ? `✓ ${articuloSeleccionado.stock} disponibles` : '✗ Agotado'}
-                    </span>
+              {/* Información Principal */}
+              <div className="space-y-6">
+                {/* Nombre, Categoría y Precio */}
+                <div className="border-b border-gray-200 pb-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-3xl font-extrabold text-gray-900 mb-2">
+                        {articuloSeleccionado.nombre}
+                      </h3>
+                      <p className="text-lg text-blue-600 font-semibold">
+                        {articuloSeleccionado.marca} - {articuloSeleccionado.modelo}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
+                          {articuloSeleccionado.categoria || 'Sin categoría'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4 text-right">
+                      <p className="text-4xl font-bold text-green-600 mb-1">
+                        ${articuloSeleccionado.precio.toLocaleString()}
+                      </p>
+                      <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
+                        articuloSeleccionado.stock > 0 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {articuloSeleccionado.stock > 0 
+                          ? `✓ ${articuloSeleccionado.stock} disponibles` 
+                          : '✗ Agotado'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="h-px bg-gray-100 w-full" />
-
-                {/* Descripción */}
+                {/* Descripción Completa */}
                 <div>
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Descripción</h4>
+                  <h4 className="text-xl font-bold text-gray-800 mb-4">Descripción</h4>
                   <p className="text-gray-700 leading-relaxed text-lg whitespace-pre-wrap">
                     {articuloSeleccionado.descripcion}
                   </p>
                 </div>
 
-                {/* Grid de Datos Técnicos */}
-                <div className="grid grid-cols-2 gap-4 pt-4">
-                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Marca</p>
-                    <p className="font-bold text-gray-800">{articuloSeleccionado.marca}</p>
+                {/* Información Adicional */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-200">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <p className="text-sm text-gray-500 mb-2 font-medium">Marca</p>
+                    <p className="text-lg font-semibold text-gray-800">{articuloSeleccionado.marca}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Modelo</p>
-                    <p className="font-bold text-gray-800">{articuloSeleccionado.modelo}</p>
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <p className="text-sm text-gray-500 mb-2 font-medium">Modelo</p>
+                    <p className="text-lg font-semibold text-gray-800">{articuloSeleccionado.modelo}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <p className="text-sm text-gray-500 mb-2 font-medium">Precio</p>
+                    <p className="text-lg font-semibold text-green-600">${articuloSeleccionado.precio.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <p className="text-sm text-gray-500 mb-2 font-medium">Stock Disponible</p>
+                    <p className={`text-lg font-semibold ${
+                      articuloSeleccionado.stock > 0 ? 'text-blue-600' : 'text-red-600'
+                    }`}>
+                      {articuloSeleccionado.stock > 0 ? `${articuloSeleccionado.stock} unidades` : 'Agotado'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-6 md:col-span-2">
+                    <p className="text-sm text-gray-500 mb-2 font-medium"></p>
+                    {articuloSeleccionado.link ? (
+                      <button
+                        type="button"
+                        onClick={() => copiarLink(articuloSeleccionado.link)}
+                        className="group inline-flex w-full items-center justify-between gap-4 rounded-2xl bg-gray-900/90 px-6 py-5 text-white shadow-sm hover:bg-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        title="Clic para copiar el vínculo"
+                        aria-label="Copiar vínculo del producto"
+                      >
+                        <span className="inline-flex items-center gap-4">
+                          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+                            {/* Icono copiar (SVG inline) */}
+                            <svg
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden="true"
+                              className="text-white/90"
+                            >
+                              <path
+                                d="M8 8V6.5C8 5.67157 8.67157 5 9.5 5H18.5C19.3284 5 20 5.67157 20 6.5V15.5C20 16.3284 19.3284 17 18.5 17H17"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d="M6.5 8H15.5C16.3284 8 17 8.67157 17 9.5V18.5C17 19.3284 16.3284 20 15.5 20H6.5C5.67157 20 5 19.3284 5 18.5V9.5C5 8.67157 5.67157 8 6.5 8Z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              />
+                            </svg>
+                          </span>
+                          <span className="text-xl font-semibold">
+                            {copiado ? 'Copiado' : 'Copiar vínculo'}
+                          </span>
+                        </span>
+                        <span className="text-sm text-white/70 group-hover:text-white/80">
+                          {copiado ? 'Listo' : ''}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="text-sm text-gray-400">Sin link</span>
+                    )}
+                    <p className="text-xs text-green-600 mt-2" role="status" aria-live="polite">
+                      {copiado ? 'Vínculo copiado al portapapeles' : ''}
+                    </p>
                   </div>
                 </div>
 
-                {/* Botón de Link / Copiar */}
-                {articuloSeleccionado.link && (
-                  <div className="pt-6">
-                    <button
-                      onClick={() => copiarLink(articuloSeleccionado.link)}
-                      className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-all group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <span className="bg-white/20 p-2 rounded-lg">🔗</span>
-                        <span className="font-bold">{copiado ? '¡LINK COPIADO!' : 'COPIAR LINK DEL PRODUCTO'}</span>
-                      </div>
-                      <span className="text-white/60 group-hover:text-white transition-colors">
-                        {copiado ? '✓' : '→'}
-                      </span>
-                    </button>
-                  </div>
-                )}
+                {/* Botón de Cerrar */}
+                <div className="pt-6 border-t border-gray-200">
+                  <button
+                    onClick={cerrarDetalles}
+                    className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl transition-all focus:outline-none focus:ring-4 focus:ring-gray-300"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
-
-              {/* Botón de Cierre Inferior */}
-              <button 
-                onClick={cerrarDetalles}
-                className="w-full py-4 text-sm font-black text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest"
-              >
-                Cerrar vista detallada
-              </button>
             </div>
           </div>
         </>
