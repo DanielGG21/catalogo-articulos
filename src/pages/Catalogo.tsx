@@ -1,75 +1,45 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase' // Tu conexión
-import type { Articulo } from '../types'      // Tu interface
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
+import type { Articulo } from '../types'
 
 const SHEET_ANIM_MS = 300;
-  
+
 function Catalogo() {
-  // 1. Definimos el ESTADO (como una propiedad privada en C# que refresca la vista al cambiar)
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // Estado para el detalle ampliado
+  // --- ESTADOS DE FILTRADO ---
+  const [precioMax, setPrecioMax] = useState<number>(2000);
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+
+  // --- ESTADOS DE DETALLE ---
   const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [mostrarSheet, setMostrarSheet] = useState(false);
   const [copiado, setCopiado] = useState(false);
+
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const lastActiveElRef = useRef<HTMLElement | null>(null);
 
-  const abrirDetalles = useCallback((item: Articulo) => {
-    lastActiveElRef.current = document.activeElement as HTMLElement | null;
-    setArticuloSeleccionado(item);
-    setMostrarSheet(true);
-    setCopiado(false);
-    // Pequeño delay para que el navegador renderice primero en translate-x-full
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setDetalleAbierto(true);
-        // Mover foco al diálogo (WCAG 2.4.3 / 2.4.7)
-        window.setTimeout(() => closeBtnRef.current?.focus(), 0);
-      });
+  const categoriasUnicas = useMemo(() => {
+    const cats = articulos.map(a => a.categoria).filter(Boolean);
+    return Array.from(new Set(cats));
+  }, [articulos]);
+
+  const articulosFiltrados = useMemo(() => {
+    return articulos.filter(art => {
+      const coincideBusqueda = art.nombre.toLowerCase().includes(busqueda.toLowerCase());
+      const coincidePrecio = art.precio <= precioMax;
+      const coincideCategoria = categoriaSeleccionada ? art.categoria === categoriaSeleccionada : true;
+      return coincideBusqueda && coincidePrecio && coincideCategoria;
     });
-  }, []);
+  }, [articulos, busqueda, precioMax, categoriaSeleccionada]);
 
-  const cerrarDetalles = useCallback(() => {
-    setDetalleAbierto(false);
-    // Mantener montado el sheet durante la animación de cierre
-    window.setTimeout(() => {
-      setMostrarSheet(false);
-      setArticuloSeleccionado(null);
-      setCopiado(false);
-      // Restaurar foco al elemento que abrió el diálogo
-      lastActiveElRef.current?.focus?.();
-    }, SHEET_ANIM_MS);
-  }, []);
-
-  const copiarLink = useCallback((link?: string) => {
-    if (!link) return;
-    navigator.clipboard?.writeText(link).then(() => {
-      setCopiado(true);
-      window.setTimeout(() => setCopiado(false), 1500);
-    }).catch(() => {
-      // Fallback silencioso
-      const textarea = document.createElement('textarea');
-      textarea.value = link;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopiado(true);
-      window.setTimeout(() => setCopiado(false), 1500);
-    });
-  }, []);
-
-  // 2. Función para obtener los datos
   async function obtenerArticulos() {
     try {
       setCargando(true);
-      const { data, error } = await supabase
-        .from('articulos') // Nombre de tu tabla
-        .select('*');     // Traer todas las columnas
-
+      const { data, error } = await supabase.from('articulos').select('*');
       if (error) throw error;
       if (data) setArticulos(data);
     } catch (error) {
@@ -79,263 +49,171 @@ function Catalogo() {
     }
   }
 
-  // 3. useEffect: Se ejecuta automáticamente cuando la página carga
-  useEffect(() => {
-    obtenerArticulos();
+  useEffect(() => { obtenerArticulos(); }, []);
+
+  const abrirDetalles = useCallback((item: Articulo) => {
+    lastActiveElRef.current = document.activeElement as HTMLElement | null;
+    setArticuloSeleccionado(item);
+    setMostrarSheet(true);
+    setCopiado(false);
+    setTimeout(() => {
+      setDetalleAbierto(true);
+      closeBtnRef.current?.focus();
+    }, 10);
   }, []);
 
-  // Efecto para prevenir scroll del body y cerrar con Escape cuando el detalle está abierto
-  useEffect(() => {
-    if (detalleAbierto) {
-      document.body.style.overflow = 'hidden';
-      const handleEscape = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') cerrarDetalles();
-      };
-      document.addEventListener('keydown', handleEscape);
-      return () => {
-        document.body.style.overflow = 'unset';
-        document.removeEventListener('keydown', handleEscape);
-      };
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-  }, [detalleAbierto, cerrarDetalles]);
+  const cerrarDetalles = useCallback(() => {
+    setDetalleAbierto(false);
+    window.setTimeout(() => {
+      setMostrarSheet(false);
+      setArticuloSeleccionado(null);
+      lastActiveElRef.current?.focus?.();
+    }, SHEET_ANIM_MS);
+  }, []);
 
+  const copiarLink = useCallback((link?: string) => {
+    if (!link) return;
+    navigator.clipboard?.writeText(link).then(() => {
+      setCopiado(true);
+      window.setTimeout(() => setCopiado(false), 1500);
+    });
+  }, []);
 
-  if (cargando) return <div className="text-center mt-20">Cargando catálogo...</div>;
+  if (cargando) return <div className="text-center mt-20 animate-pulse font-bold text-blue-600">Cargando catálogo...</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8" aria-label="Catálogo">
-      <header className="max-w-6xl mx-auto mb-10">
-        <h1 className="text-4xl font-extrabold text-gray-900">Catálogo de Artículos</h1>
-        <p className="text-gray-500">Explora nuestros productos disponibles</p>
-      </header>
-
-      {/* 4. GRID: Aquí mostramos los artículos */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {articulos.map((item) => (
-          <div key={item.id} className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow overflow-hidden border border-gray-100">
-            {/* Imagen del artículo */}
-            <div className="h-48 overflow-hidden bg-gray-200">
-              <img 
-                src={item.imagen_url || 'https://via.placeholder.com/400'} 
-                alt={item.nombre}
-                className="w-full h-full object-cover"
+    <main className="min-h-screen bg-white p-3 md:p-8">
+      <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row gap-6 md:gap-8">
+        
+        {/* --- SIDEBAR DE FILTROS --- */}
+        <aside className="w-full md:w-72 flex-shrink-0 space-y-6 md:space-y-8">
+          <h2 className="text-xl md:text-2xl font-black text-gray-800 flex items-center justify-between">
+            Filtrar por <span className="text-sm">⚡</span>
+          </h2>
+          
+          <div className="space-y-6">
+            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+              <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400 mb-3">
+                <span>Rango máx.</span>
+                <span className="text-blue-600">${precioMax}</span>
+              </div>
+              <input 
+                type="range" min="0" max="2000" step="10"
+                value={precioMax}
+                onChange={(e) => setPrecioMax(Number(e.target.value))}
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
             </div>
-            
-            {/* Info del artículo */}
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">{item.nombre}</h3>
-                  <p className="text-sm text-blue-600 font-medium">{item.marca} - {item.modelo}</p>
-                </div>
-                <span className="bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full">
-                  ${item.precio}
-                </span>
-              </div>
-              
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                {item.descripcion}
-              </p>
-              
-              <div className="flex justify-between items-center border-t pt-4">
-                <span className={`text-sm font-semibold ${item.stock > 0 ? 'text-gray-500' : 'text-red-500'}`}>
-                  {item.stock > 0 ? `${item.stock} disponibles` : 'Agotado'}
-                </span>
+
+            <div>
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Categorías</h3>
+              <div className="flex flex-wrap gap-2">
                 <button 
-                  onClick={() => abrirDetalles(item)}
-                  className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  aria-label={`Ver detalles de ${item.nombre}`}
+                  onClick={() => setCategoriaSeleccionada(null)}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${!categoriaSeleccionada ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}
                 >
-                  Ver detalles
+                  TODOS
                 </button>
+                {categoriasUnicas.map(cat => (
+                  <button 
+                    key={cat}
+                    onClick={() => setCategoriaSeleccionada(cat === categoriaSeleccionada ? null : cat)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all ${categoriaSeleccionada === cat ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <div className="hidden md:block">
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Buscar</h3>
+              <input 
+                type="text"
+                placeholder="Nombre..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full p-3 bg-gray-50 border-none rounded-xl text-sm outline-none"
+              />
             </div>
           </div>
-        ))}
-      </div>
+        </aside>
 
-      {/* Side Sheet (si hay artículo seleccionado) */}
-      {mostrarSheet && articuloSeleccionado && (
-        <>
-          {/* Overlay */}
-          <div
-            className={`fixed inset-0 bg-black/10 z-40 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
-              detalleAbierto ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}
-            onClick={cerrarDetalles}
-            aria-hidden="true"
-          />
+        {/* --- GRID DE PRODUCTOS (2 COLUMNAS EN MÓVIL) --- */}
+        <section className="flex-1">
+          <header className="mb-6">
+            <h1 className="text-3xl md:text-4xl font-black text-gray-900 leading-none">Catálogo</h1>
+            <p className="text-gray-400 text-xs md:text-sm mt-2 font-medium">{articulosFiltrados.length} artículos</p>
+          </header>
 
-          {/* Panel */}
-          <div
-            className={`fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out motion-reduce:transition-none overflow-y-auto ${
-              detalleAbierto ? 'translate-x-0' : 'translate-x-full pointer-events-none'
-            }`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="detalle-producto-title"
-          >
-            {/* Header del Side Sheet */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10 shadow-sm">
-              <h2 id="detalle-producto-title" className="text-2xl font-bold text-gray-800">
-                Detalles del Producto
-              </h2>
-              <button
-                onClick={cerrarDetalles}
-                type="button"
-                ref={closeBtnRef}
-                className="text-gray-500 hover:text-gray-700 font-bold text-2xl w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Cerrar detalles"
+          {/* CLASE CLAVE: grid-cols-2 */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
+            {articulosFiltrados.map((item) => (
+              <div 
+                key={item.id} 
+                className="group bg-white rounded-2xl md:rounded-3xl border border-gray-100 p-2 md:p-4 hover:shadow-xl transition-all duration-300"
               >
-                ×
-              </button>
-            </div>
-
-            {/* Contenido del Side Sheet */}
-            <div className="p-6 md:p-8">
-              {/* Imagen Completa */}
-              <div className="mb-8">
-                <div className="w-full h-96 bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
+                <div className="aspect-square rounded-xl md:rounded-2xl bg-gray-50 overflow-hidden mb-3 relative">
                   <img 
-                    src={articuloSeleccionado.imagen_url || 'https://via.placeholder.com/800x600'} 
-                    alt={articuloSeleccionado.nombre}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600?text=Imagen+no+disponible';
-                    }}
+                    src={item.imagen_url || 'https://via.placeholder.com/400'} 
+                    alt={item.nombre}
+                    className="w-full h-full object-contain p-2 md:p-4 group-hover:scale-105 transition-transform"
                   />
                 </div>
-              </div>
-
-              {/* Información Principal */}
-              <div className="space-y-6">
-                {/* Nombre, Categoría y Precio */}
-                <div className="border-b border-gray-200 pb-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-3xl font-extrabold text-gray-900 mb-2">
-                        {articuloSeleccionado.nombre}
-                      </h3>
-                      <p className="text-lg text-blue-600 font-semibold">
-                        {articuloSeleccionado.marca} - {articuloSeleccionado.modelo}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
-                          {articuloSeleccionado.categoria || 'Sin categoría'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="ml-4 text-right">
-                      <p className="text-4xl font-bold text-green-600 mb-1">
-                        ${articuloSeleccionado.precio.toLocaleString()}
-                      </p>
-                      <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
-                        articuloSeleccionado.stock > 0 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {articuloSeleccionado.stock > 0 
-                          ? `✓ ${articuloSeleccionado.stock} disponibles` 
-                          : '✗ Agotado'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Descripción Completa */}
-                <div>
-                  <h4 className="text-xl font-bold text-gray-800 mb-4">Descripción</h4>
-                  <p className="text-gray-700 leading-relaxed text-lg whitespace-pre-wrap">
-                    {articuloSeleccionado.descripcion}
-                  </p>
-                </div>
-
-                {/* Información Adicional */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-200">
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <p className="text-sm text-gray-500 mb-2 font-medium">Marca</p>
-                    <p className="text-lg font-semibold text-gray-800">{articuloSeleccionado.marca}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <p className="text-sm text-gray-500 mb-2 font-medium">Modelo</p>
-                    <p className="text-lg font-semibold text-gray-800">{articuloSeleccionado.modelo}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <p className="text-sm text-gray-500 mb-2 font-medium">Precio</p>
-                    <p className="text-lg font-semibold text-green-600">${articuloSeleccionado.precio.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <p className="text-sm text-gray-500 mb-2 font-medium">Stock Disponible</p>
-                    <p className={`text-lg font-semibold ${
-                      articuloSeleccionado.stock > 0 ? 'text-blue-600' : 'text-red-600'
-                    }`}>
-                      {articuloSeleccionado.stock > 0 ? `${articuloSeleccionado.stock} unidades` : 'Agotado'}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-6 md:col-span-2">
-                    <p className="text-sm text-gray-500 mb-2 font-medium"></p>
-                    {articuloSeleccionado.link ? (
-                      <button
-                        type="button"
-                        onClick={() => copiarLink(articuloSeleccionado.link)}
-                        className="group inline-flex w-full items-center justify-between gap-4 rounded-2xl bg-gray-900/90 px-6 py-5 text-white shadow-sm hover:bg-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        title="Clic para copiar el vínculo"
-                        aria-label="Copiar vínculo del producto"
-                      >
-                        <span className="inline-flex items-center gap-4">
-                          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-                            {/* Icono copiar (SVG inline) */}
-                            <svg
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                              aria-hidden="true"
-                              className="text-white/90"
-                            >
-                              <path
-                                d="M8 8V6.5C8 5.67157 8.67157 5 9.5 5H18.5C19.3284 5 20 5.67157 20 6.5V15.5C20 16.3284 19.3284 17 18.5 17H17"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                              />
-                              <path
-                                d="M6.5 8H15.5C16.3284 8 17 8.67157 17 9.5V18.5C17 19.3284 16.3284 20 15.5 20H6.5C5.67157 20 5 19.3284 5 18.5V9.5C5 8.67157 5.67157 8 6.5 8Z"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              />
-                            </svg>
-                          </span>
-                          <span className="text-xl font-semibold">
-                            {copiado ? 'Copiado' : 'Copiar vínculo'}
-                          </span>
-                        </span>
-                        <span className="text-sm text-white/70 group-hover:text-white/80">
-                          {copiado ? 'Listo' : ''}
-                        </span>
-                      </button>
-                    ) : (
-                      <span className="text-sm text-gray-400">Sin link</span>
-                    )}
-                    <p className="text-xs text-green-600 mt-2" role="status" aria-live="polite">
-                      {copiado ? 'Vínculo copiado al portapapeles' : ''}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Botón de Cerrar */}
-                <div className="pt-6 border-t border-gray-200">
-                  <button
-                    onClick={cerrarDetalles}
-                    className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl transition-all focus:outline-none focus:ring-4 focus:ring-gray-300"
+                
+                <div className="space-y-1 text-center md:text-left">
+                  <h3 className="text-[10px] md:text-xs font-bold text-gray-800 line-clamp-2 min-h-[30px] md:min-h-[40px] uppercase leading-tight">
+                    {item.nombre}
+                  </h3>
+                  <p className="text-sm md:text-lg font-black text-blue-600">${item.precio.toFixed(2)}</p>
+                  
+                  <button 
+                    onClick={() => abrirDetalles(item)}
+                    className="w-full py-2 md:py-3 mt-1 rounded-lg md:rounded-xl bg-gray-900 text-white text-[9px] md:text-xs font-bold"
                   >
-                    Cerrar
+                    VER DETALLES
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+
+          {articulosFiltrados.length === 0 && (
+            <div className="text-center py-10 text-gray-400 text-sm font-bold">Sin resultados</div>
+          )}
+        </section>
+      </div>
+
+      {/* --- PANEL DE DETALLE --- */}
+      {mostrarSheet && articuloSeleccionado && (
+        <>
+          <div className={`fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity ${detalleAbierto ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={cerrarDetalles} />
+          <div className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-500 overflow-y-auto ${detalleAbierto ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="sticky top-0 bg-white p-4 flex justify-between items-center border-b z-10">
+              <h2 className="text-sm font-black uppercase">Detalle</h2>
+              <button onClick={cerrarDetalles} ref={closeBtnRef} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100">✕</button>
+            </div>
+            <div className="p-6 md:p-8 space-y-6">
+              <div className="w-full aspect-square bg-gray-50 rounded-2xl overflow-hidden">
+                <img src={articuloSeleccionado.imagen_url} className="w-full h-full object-contain p-4" />
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-2xl md:text-3xl font-black text-gray-900 uppercase leading-none">{articuloSeleccionado.nombre}</h3>
+                <div className="flex justify-between items-center">
+                  <p className="text-3xl font-black text-blue-600">${articuloSeleccionado.precio}</p>
+                  <span className="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded">{articuloSeleccionado.stock} disponibles</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-3 bg-gray-50 rounded-lg"><b>MARCA:</b> {articuloSeleccionado.marca}</div>
+                    <div className="p-3 bg-gray-50 rounded-lg"><b>MODELO:</b> {articuloSeleccionado.modelo}</div>
+                </div>
+                <p className="text-gray-600 text-sm md:text-base leading-relaxed">{articuloSeleccionado.descripcion}</p>
+                {articuloSeleccionado.link && (
+                  <button onClick={() => copiarLink(articuloSeleccionado.link)} className="w-full p-4 bg-blue-600 text-white rounded-xl font-bold flex justify-between items-center uppercase text-xs">
+                    <span>{copiado ? '¡Copiado!' : 'Copiar Link'}</span>
+                    <span>🔗</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
