@@ -112,8 +112,7 @@ function Catalogo() {
       </header>
 
       {/* 4. GRID: Aquí mostramos los artículos */}
-
-      <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {articulos.map((item) => (
           <div key={item.id} className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow overflow-hidden border border-gray-100">
             {/* Imagen del artículo */}
