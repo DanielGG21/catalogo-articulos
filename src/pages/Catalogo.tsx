@@ -9,7 +9,7 @@ function Catalogo() {
   const [cargando, setCargando] = useState(true);
 
   // --- ESTADOS DE FILTRADO ---
-  const [precioMax, setPrecioMax] = useState<number>(2000);
+  const [precioMax, setPrecioMax] = useState<number>(0);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
@@ -22,6 +22,21 @@ function Catalogo() {
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const lastActiveElRef = useRef<HTMLElement | null>(null);
 
+  // ✅ Precio máximo dinámico (según el artículo más caro) + redondeo bonito
+  const precioMaximoRedondeado = useMemo(() => {
+    if (articulos.length === 0) return 0;
+    const maxReal = Math.max(...articulos.map(a => Number(a.precio) || 0));
+    if (!Number.isFinite(maxReal) || maxReal <= 0) return 0;
+    return Math.ceil(maxReal / 100) * 100; // redondea a múltiplos de 100
+  }, [articulos]);
+
+  // ✅ Al cargar artículos, setea el slider al máximo real
+  useEffect(() => {
+    if (precioMaximoRedondeado > 0) {
+      setPrecioMax(precioMaximoRedondeado);
+    }
+  }, [precioMaximoRedondeado]);
+
   const categoriasUnicas = useMemo(() => {
     const cats = articulos.map(a => a.categoria).filter(Boolean);
     return Array.from(new Set(cats));
@@ -30,7 +45,7 @@ function Catalogo() {
   const articulosFiltrados = useMemo(() => {
     return articulos.filter(art => {
       const coincideBusqueda = art.nombre.toLowerCase().includes(busqueda.toLowerCase());
-      const coincidePrecio = art.precio <= precioMax;
+      const coincidePrecio = (Number(art.precio) || 0) <= precioMax;
       const coincideCategoria = categoriaSeleccionada ? art.categoria === categoriaSeleccionada : true;
       return coincideBusqueda && coincidePrecio && coincideCategoria;
     });
@@ -95,13 +110,18 @@ function Catalogo() {
             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
               <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400 mb-3">
                 <span>Rango máx.</span>
-                <span className="text-blue-600">${precioMax}</span>
+                <span className="text-blue-600">${precioMax.toLocaleString()}</span>
               </div>
+
               <input 
-                type="range" min="0" max="2000" step="10"
+                type="range"
+                min="0"
+                max={precioMaximoRedondeado || 0}
+                step={precioMaximoRedondeado > 5000 ? 100 : 10}
                 value={precioMax}
                 onChange={(e) => setPrecioMax(Number(e.target.value))}
                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                disabled={precioMaximoRedondeado === 0}
               />
             </div>
 
@@ -146,7 +166,6 @@ function Catalogo() {
             <p className="text-gray-400 text-xs md:text-sm mt-2 font-medium">{articulosFiltrados.length} artículos</p>
           </header>
 
-          {/* CLASE CLAVE: grid-cols-2 */}
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
             {articulosFiltrados.map((item) => (
               <div 
@@ -165,7 +184,7 @@ function Catalogo() {
                   <h3 className="text-[10px] md:text-xs font-bold text-gray-800 line-clamp-2 min-h-[30px] md:min-h-[40px] uppercase leading-tight">
                     {item.nombre}
                   </h3>
-                  <p className="text-sm md:text-lg font-black text-blue-600">${item.precio.toFixed(2)}</p>
+                  <p className="text-sm md:text-lg font-black text-blue-600">${Number(item.precio).toFixed(2)}</p>
                   
                   <button 
                     onClick={() => abrirDetalles(item)}

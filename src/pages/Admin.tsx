@@ -1,7 +1,9 @@
+// --- IMPORTACIONES ---
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase'; //
 import { useNavigate } from 'react-router-dom'; //
 import type { Articulo } from '../types';
+import CsvActions from '../components/CsvActions';
 
 const SHEET_ANIM_MS = 300;
 
@@ -175,57 +177,82 @@ export default function Admin() {
   const articulosPagina = articulosFiltrados.slice(indiceInicio, indiceInicio + ITEMS_POR_PAGINA);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         {/* Mensajes accesibles (WCAG 4.1.3) */}
         <div role="status" aria-live="polite" className="sr-only">
           {mensaje ?? ''}
         </div>
+
         {mensaje && (
-          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800">
+          <div className="mb-4 sm:mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800 shadow-sm">
             {mensaje}
           </div>
         )}
-        
-        {/* Header Mejorado */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
-          <div className="mb-6">
-            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-              Panel de Control
-            </h1>
-            <p className="text-gray-500">Gestión completa de inventario</p>
-          </div>
 
-          {/* Estadísticas Rápidas */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-sm text-gray-500 mb-2 font-medium">Total Productos</p>
-              <p className="text-3xl font-bold text-gray-800">{totalProductos}</p>
+        {/* ✅ Header + Stats + Acciones (mejor móvil) */}
+        <div className="mb-5 sm:mb-7 rounded-3xl border border-gray-200 bg-white shadow-lg">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Panel de Control
+                </h1>
+                <p className="mt-1 text-sm text-gray-500">Gestión completa de inventario</p>
+              </div>
+
+              {/* ✅ Acciones (top-right en desktop, stack en móvil) */}
+              <div className="w-full sm:w-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3">
+                  <button
+                    onClick={abrirNuevoProducto}
+                    type="button"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-sm font-extrabold text-white shadow-md transition-all hover:from-blue-600 hover:to-blue-700 hover:shadow-lg active:scale-[0.99]"
+                  >
+                    <span>➕</span> Nuevo Producto
+                  </button>
+
+                  {/* CsvActions tal cual, solo lo envolvemos para que se alinee mejor */}
+                  <div className="w-full">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-2">
+                      <CsvActions
+                        articulos={articulos}
+                        onImportSuccess={(message) => {
+                          setMensaje(message);
+                          fetcharticulos(); // refresca tabla después del import
+                        }}
+                        onImportError={(error) => {
+                          setMensaje(error);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-sm text-gray-500 mb-2 font-medium">Stock Total</p>
-              <p className="text-3xl font-bold text-gray-800">{totalStock}</p>
-            </div>
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-sm text-gray-500 mb-2 font-medium">Valor Inventario</p>
-              <p className="text-2xl font-bold text-gray-800">${valorInventario.toLocaleString()}</p>
-            </div>
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-sm text-gray-500 mb-2 font-medium">Sin Stock</p>
-              <p className="text-3xl font-bold text-gray-800">{productosSinStock}</p>
+
+            {/* ✅ Stats compactas en móvil */}
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-4 sm:gap-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Total Productos</p>
+                <p className="mt-1 text-2xl sm:text-3xl font-extrabold text-gray-900">{totalProductos}</p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Stock Total</p>
+                <p className="mt-1 text-2xl sm:text-3xl font-extrabold text-gray-900">{totalStock}</p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Valor Inventario</p>
+                <p className="mt-1 text-xl sm:text-2xl font-extrabold text-gray-900">
+                  ${valorInventario.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Sin Stock</p>
+                <p className="mt-1 text-2xl sm:text-3xl font-extrabold text-gray-900">{productosSinStock}</p>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Botón para abrir side sheet - Nuevo Producto */}
-        <div className="mb-6">
-          <button
-            onClick={abrirNuevoProducto}
-            type="button"
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all flex items-center gap-2"
-          >
-            <span>➕</span> Nuevo Producto
-          </button>
         </div>
 
         {/* Side Sheet - Overlay */}
@@ -246,9 +273,9 @@ export default function Admin() {
           aria-modal="true"
           aria-labelledby="side-sheet-title"
         >
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-5 sm:p-6 flex items-center justify-between z-10">
             <div>
-              <h2 id="side-sheet-title" className="text-2xl font-bold text-gray-800">
+              <h2 id="side-sheet-title" className="text-xl sm:text-2xl font-bold text-gray-800">
                 {editandoId ? (
                   <span className="flex items-center gap-2">
                     <span className="text-orange-500">✏️</span> Editando Producto
@@ -267,208 +294,209 @@ export default function Admin() {
               onClick={cerrarBottomSheet}
               type="button"
               ref={closeBtnRef}
-              className="text-gray-500 hover:text-gray-700 font-bold text-2xl w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-gray-500 hover:text-gray-700 font-bold text-2xl w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Cerrar panel"
             >
               ×
             </button>
           </div>
 
-          <div className="p-6 md:p-8">
-          <form onSubmit={guardarCambios} className="space-y-6" aria-describedby="form-ayuda">
-            <p id="form-ayuda" className="sr-only">
-              Completa los campos obligatorios marcados con asterisco y guarda el producto.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Nombre */}
-              <div className="space-y-2">
-                <label htmlFor="nombre" className="block text-sm font-semibold text-gray-700">
-                  Nombre del Producto <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  id="nombre"
-                  type="text" 
-                  placeholder="Ej: Laptop HP Pavilion" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.nombre} 
-                  onChange={e => setFormulario({...formulario, nombre: e.target.value})} 
-                  required 
-                />
-              </div>
+          <div className="p-5 sm:p-8">
+            <form onSubmit={guardarCambios} className="space-y-6" aria-describedby="form-ayuda">
+              <p id="form-ayuda" className="sr-only">
+                Completa los campos obligatorios marcados con asterisco y guarda el producto.
+              </p>
 
-              {/* Marca */}
-              <div className="space-y-2">
-                <label htmlFor="marca" className="block text-sm font-semibold text-gray-700">
-                  Marca <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  id="marca"
-                  type="text" 
-                  placeholder="Ej: HP, Dell, Samsung" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.marca} 
-                  onChange={e => setFormulario({...formulario, marca: e.target.value})} 
-                  required 
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Nombre */}
+                <div className="space-y-2">
+                  <label htmlFor="nombre" className="block text-sm font-semibold text-gray-700">
+                    Nombre del Producto <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    id="nombre"
+                    type="text" 
+                    placeholder="Ej: Laptop HP Pavilion" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.nombre} 
+                    onChange={e => setFormulario({...formulario, nombre: e.target.value})} 
+                    required 
+                  />
+                </div>
 
-              {/* Modelo */}
-              <div className="space-y-2">
-                <label htmlFor="modelo" className="block text-sm font-semibold text-gray-700">
-                  Modelo <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  id="modelo"
-                  type="text" 
-                  placeholder="Ej: 15-dw2000la" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.modelo} 
-                  onChange={e => setFormulario({...formulario, modelo: e.target.value})} 
-                  required 
-                />
-              </div>
+                {/* Marca */}
+                <div className="space-y-2">
+                  <label htmlFor="marca" className="block text-sm font-semibold text-gray-700">
+                    Marca <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    id="marca"
+                    type="text" 
+                    placeholder="Ej: HP, Dell, Samsung" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.marca} 
+                    onChange={e => setFormulario({...formulario, marca: e.target.value})} 
+                    required 
+                  />
+                </div>
 
-              {/* Categoría */}
-              <div className="space-y-2">
-                <label htmlFor="categoria" className="block text-sm font-semibold text-gray-700">
-                  Categoría <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  id="categoria"
-                  type="text" 
-                  placeholder="Ej: Papelería, Electrónica" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.categoria} 
-                  onChange={e => setFormulario({...formulario, categoria: e.target.value})} 
-                  required 
-                />
-              </div>
+                {/* Modelo */}
+                <div className="space-y-2">
+                  <label htmlFor="modelo" className="block text-sm font-semibold text-gray-700">
+                    Modelo <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    id="modelo"
+                    type="text" 
+                    placeholder="Ej: 15-dw2000la" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.modelo} 
+                    onChange={e => setFormulario({...formulario, modelo: e.target.value})} 
+                    required 
+                  />
+                </div>
 
-              {/* Link */}
-              <div className="space-y-2">
-                <label htmlFor="link" className="block text-sm font-semibold text-gray-700">
-                  Link / URL del producto
-                </label>
-                <input 
-                  id="link"
-                  type="url" 
-                  placeholder="https://tutienda.com/articulo" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.link} 
-                  onChange={e => setFormulario({...formulario, link: e.target.value})} 
-                />
-              </div>
+                {/* Categoría */}
+                <div className="space-y-2">
+                  <label htmlFor="categoria" className="block text-sm font-semibold text-gray-700">
+                    Categoría <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    id="categoria"
+                    type="text" 
+                    placeholder="Ej: Papelería, Electrónica" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.categoria} 
+                    onChange={e => setFormulario({...formulario, categoria: e.target.value})} 
+                    required 
+                  />
+                </div>
 
-              {/* Precio */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Precio (USD) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                {/* Link */}
+                <div className="space-y-2">
+                  <label htmlFor="link" className="block text-sm font-semibold text-gray-700">
+                    Link / URL del producto
+                  </label>
+                  <input 
+                    id="link"
+                    type="url" 
+                    placeholder="https://tutienda.com/articulo" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.link} 
+                    onChange={e => setFormulario({...formulario, link: e.target.value})} 
+                  />
+                </div>
+
+                {/* Precio */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Precio (USD) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0"
+                      placeholder="0.00" 
+                      className="w-full p-3 pl-8 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                      value={formulario.precio ?? ''} 
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFormulario({ ...formulario, precio: v === '' ? null : Number(v) });
+                      }} 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                {/* Stock */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Stock Disponible <span className="text-red-500">*</span>
+                  </label>
                   <input 
                     type="number" 
-                    step="0.01" 
                     min="0"
-                    placeholder="0.00" 
-                    className="w-full p-3 pl-8 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                    value={formulario.precio ?? ''} 
+                    placeholder="0" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.stock ?? ''} 
                     onChange={(e) => {
                       const v = e.target.value;
-                      setFormulario({ ...formulario, precio: v === '' ? null : Number(v) });
+                      setFormulario({ ...formulario, stock: v === '' ? null : Number(v) });
                     }} 
+                    required 
+                  />
+                  {formulario.stock === 0 && formulario.stock !== null && (
+                    <p className="text-xs text-orange-500"> El producto quedará sin stock</p>
+                  )}
+                </div>
+
+                {/* URL de Imagen */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    URL de Imagen <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="url" 
+                    placeholder="https://ejemplo.com/imagen.jpg" 
+                    className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
+                    value={formulario.imagen_url} 
+                    onChange={e => setFormulario({...formulario, imagen_url: e.target.value})} 
                     required 
                   />
                 </div>
               </div>
 
-              {/* Stock */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Stock Disponible <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="number" 
-                  min="0"
-                  placeholder="0" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.stock ?? ''} 
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setFormulario({ ...formulario, stock: v === '' ? null : Number(v) });
-                  }} 
-                  required 
-                />
-                {formulario.stock === 0 && formulario.stock !== null && (
-                  <p className="text-xs text-orange-500"> El producto quedará sin stock</p>
-                )}
-              </div>
-
-              {/* URL de Imagen */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  URL de Imagen <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="url" 
-                  placeholder="https://ejemplo.com/imagen.jpg" 
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none" 
-                  value={formulario.imagen_url} 
-                  onChange={e => setFormulario({...formulario, imagen_url: e.target.value})} 
-                  required 
-                />
-              </div>
-            </div>
-
-            {/* Preview de Imagen */}
-            {formulario.imagen_url && (
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Vista Previa de Imagen</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 flex justify-center">
-                  <img 
-                    src={formulario.imagen_url} 
-                    alt="Preview" 
-                    className="max-h-48 rounded-lg shadow-md object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Imagen+no+disponible';
-                    }}
-                  />
+              {/* Preview de Imagen */}
+              {formulario.imagen_url && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">Vista Previa de Imagen</label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 bg-gray-50 flex justify-center">
+                    <img 
+                      src={formulario.imagen_url} 
+                      alt="Preview" 
+                      className="max-h-48 rounded-xl shadow-md object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Imagen+no+disponible';
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Descripción */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Descripción del Producto <span className="text-red-500">*</span>
-              </label>
-              <textarea 
-                placeholder="Describe las características principales del producto..." 
-                className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none resize-none" 
-                rows={4} 
-                value={formulario.descripcion} 
-                onChange={e => setFormulario({...formulario, descripcion: e.target.value})} 
-                required 
-              />
-              <p className="text-xs text-gray-500">{formulario.descripcion.length} caracteres</p>
-            </div>
-          
+              {/* Descripción */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Descripción del Producto <span className="text-red-500">*</span>
+                </label>
+                <textarea 
+                  placeholder="Describe las características principales del producto..." 
+                  className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none resize-none" 
+                  rows={4} 
+                  value={formulario.descripcion} 
+                  onChange={e => setFormulario({...formulario, descripcion: e.target.value})} 
+                  required 
+                />
+                <p className="text-xs text-gray-500">{formulario.descripcion.length} caracteres</p>
+              </div>
+
               {/* Botones de Acción */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button 
                   type="submit" 
-                  className={`flex-1 p-4 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all focus:outline-none focus:ring-4 focus:ring-blue-300 ${
+                  className={`flex-1 p-4 rounded-2xl font-extrabold text-white shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-4 focus:ring-blue-300 ${
                     editandoId 
                       ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' 
                       : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
                   }`}
                 >
-                  {editandoId ? '💾 ACTUALIZAR PRODUCTO' : ' GUARDAR PRODUCTO'}
+                  {editandoId ? '💾 ACTUALIZAR PRODUCTO' : 'GUARDAR PRODUCTO'}
                 </button>
                 <button 
                   type="button"
                   onClick={cerrarBottomSheet}
-                  className="px-6 p-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all border-2 border-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-300"
+                  className="px-6 p-4 rounded-2xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all border-2 border-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-300"
                 >
                   Cancelar
                 </button>
@@ -478,16 +506,17 @@ export default function Admin() {
         </div>
 
         {/* Lista de Productos Mejorada */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <span></span> Inventario de Productos
               </h2>
               <p className="text-sm text-gray-500 mt-1">Gestiona todos tus productos desde aquí</p>
             </div>
+
             {/* Buscador */}
-            <div className="w-full max-w-xs">
+            <div className="w-full md:w-[340px]">
               <label htmlFor="buscador-productos" className="sr-only">
                 Buscar productos por nombre, marca, modelo o categoría
               </label>
@@ -495,7 +524,7 @@ export default function Admin() {
                 <input
                   id="buscador-productos"
                   type="search"
-                  className="w-full rounded-xl border border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded-2xl border border-gray-300 bg-gray-50 py-3 pl-4 pr-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="Buscar productos..."
                   value={busqueda}
                   onChange={(e) => {
@@ -503,9 +532,6 @@ export default function Admin() {
                     setPaginaActual(1);
                   }}
                 />
-                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
-                  
-                </span>
               </div>
             </div>
           </div>
@@ -518,156 +544,253 @@ export default function Admin() {
             </div>
           ) : (
             <>
-            <div className="overflow-x-auto text-sm">
-              <table className="w-full table-fixed">
-                <caption className="sr-only">
-                  Inventario de productos con acciones para editar y eliminar.
-                </caption>
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">ID</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Imagen</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Producto</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Marca/Modelo</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Categoría</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Precio</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Stock</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-56">Descripción</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-28">Link</th>
-                    <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-right w-40">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {articulosPagina.map((art) => (
-                    <tr key={art.id} className="hover:bg-blue-50 transition-colors">
-                      <td className="p-4">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-semibold text-sm">
-                          {art.id}
-                        </span>
-                      </td>
-                      <td className="p-4">
+              {/* ✅ MÓVIL: Cards (evita que se encime todo) */}
+              <div className="md:hidden divide-y divide-gray-200">
+                {articulosPagina.map((art) => (
+                  <div key={art.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Imagen */}
+                      <div className="shrink-0">
                         {art.imagen_url ? (
-                          <img 
-                            src={art.imagen_url} 
-                            alt={art.nombre} 
-                            className="w-20 h-20 object-cover rounded-xl shadow-md border-2 border-gray-200" 
+                          <img
+                            src={art.imagen_url}
+                            alt={art.nombre}
+                            className="w-16 h-16 rounded-2xl object-cover border border-gray-200"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80?text=Sin+imagen';
                             }}
                           />
                         ) : (
-                          <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center text-xs text-gray-500 font-semibold shadow-inner">
+                          <div className="w-16 h-16 rounded-2xl bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-semibold">
                             Sin imagen
                           </div>
                         )}
-                      </td>
-                      <td className="p-4">
-                        <p className="font-bold text-gray-800 text-sm">{art.nombre}</p>
-                      </td>
-                      <td className="p-4">
-                        <p className="text-sm font-semibold text-gray-700">{art.marca}</p>
-                        <p className="text-xs text-gray-500">{art.modelo}</p>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs">
-                          {art.categoria || 'Sin categoría'}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold text-sm">
-                          ${art.precio.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm ${
-                          art.stock > 0 
-                            ? 'bg-blue-100 text-blue-700' 
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {art.stock > 0 ? `✓ ${art.stock}` : '✗ Agotado'}
-                        </span>
-                      </td>
-                      <td className="p-4 w-56">
-                        <p className="text-sm text-gray-600 max-w-[12rem] truncate" title={art.descripcion}>
+                      </div>
+
+                      {/* Info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-800 text-sm truncate">
+                              {art.nombre}
+                            </p>
+                            <p className="text-xs text-gray-600 truncate">
+                              {art.marca} • {art.modelo}
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                             
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs">
+                                {art.categoria || 'Sin categoría'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-green-100 text-green-700 font-bold text-xs">
+                              ${art.precio.toLocaleString()}
+                            </span>
+                            <div className="mt-2">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full font-semibold text-xs ${
+                                art.stock > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                              }`}>
+                                {art.stock > 0 ? `✓ Stock ${art.stock}` : '✗ Agotado'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Descripción */}
+                        <p className="mt-3 text-xs text-gray-600 line-clamp-2">
                           {art.descripcion}
                         </p>
-                      </td>
-                      <td className="p-4 w-28">
-                        {art.link ? (
-                          <a
-                            href={art.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline whitespace-nowrap"
-                          >
-                            Ver link
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-400">Sin link</span>
-                        )}
-                      </td>
-                      <td className="p-4 w-40">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button 
-                            onClick={() => seleccionarParaEditar(art)} 
-                            className="min-w-[88px] px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-xs md:text-sm transition-all shadow-md hover:shadow-lg"
-                          >
-                            Editar
-                          </button>
-                          <button 
-                            onClick={() => eliminarProducto(art.id)} 
-                            className="min-w-[88px] px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold text-xs md:text-sm transition-all shadow-md hover:shadow-lg"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
 
-            {/* Paginación */}
-            <div className="flex flex-col gap-3 px-4 py-3 border-t border-gray-200 md:flex-row md:items-center md:justify-between text-sm">
-              <p className="text-gray-600">
-                Mostrando{' '}
-                {articulosFiltrados.length === 0 ? 0 : indiceInicio + 1}
-                {'–'}
-                {Math.min(indiceInicio + ITEMS_POR_PAGINA, articulosFiltrados.length)} de {articulosFiltrados.length} productos
-              </p>
-              <div className="inline-flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
-                  disabled={paginaSegura === 1}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
-                    paginaSegura === 1
-                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
-                  aria-label="Página anterior"
-                >
-                  Anterior
-                </button>
-                <span className="text-gray-600 text-xs">
-                  Página {paginaSegura} de {totalPaginas}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPaginaActual((prev) => Math.min(totalPaginas, prev + 1))}
-                  disabled={paginaSegura === totalPaginas || articulosFiltrados.length === 0}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
-                    paginaSegura === totalPaginas || articulosFiltrados.length === 0
-                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
-                  aria-label="Página siguiente"
-                >
-                  Siguiente
-                </button>
+                        {/* Link + Acciones */}
+                        <div className="mt-4 flex flex-col gap-3">
+                          {art.link ? (
+                            <a
+                              href={art.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline w-fit"
+                            >
+                              Ver link
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">Sin link</span>
+                          )}
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => seleccionarParaEditar(art)}
+                              className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-semibold text-sm transition-all shadow-sm"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => eliminarProducto(art.id)}
+                              className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-semibold text-sm transition-all shadow-sm"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+
+              {/* ✅ MD+: Tabla (solo desktop/tablet) */}
+              <div className="hidden md:block overflow-x-auto text-sm">
+                <table className="w-full table-auto">
+                  <caption className="sr-only">
+                    Inventario de productos con acciones para editar y eliminar.
+                  </caption>
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">ID</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Imagen</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Producto</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Marca/Modelo</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Categoría</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Precio</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Stock</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-56">Descripción</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider w-28">Link</th>
+                      <th scope="col" className="p-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-right w-40">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {articulosPagina.map((art) => (
+                      <tr key={art.id} className="hover:bg-blue-50 transition-colors">
+                        <td className="p-4">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-semibold text-sm">
+                            {art.id}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          {art.imagen_url ? (
+                            <img 
+                              src={art.imagen_url} 
+                              alt={art.nombre} 
+                              className="w-20 h-20 object-cover rounded-2xl shadow-md border-2 border-gray-200" 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80?text=Sin+imagen';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center text-xs text-gray-500 font-semibold shadow-inner">
+                              Sin imagen
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <p className="font-bold text-gray-800 text-sm">{art.nombre}</p>
+                        </td>
+                        <td className="p-4">
+                          <p className="text-sm font-semibold text-gray-700">{art.marca}</p>
+                          <p className="text-xs text-gray-500">{art.modelo}</p>
+                        </td>
+                        <td className="p-4">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs">
+                            {art.categoria || 'Sin categoría'}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold text-sm">
+                            ${art.precio.toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm ${
+                            art.stock > 0 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {art.stock > 0 ? `✓ ${art.stock}` : '✗ Agotado'}
+                          </span>
+                        </td>
+                        <td className="p-4 w-56">
+                          <p className="text-sm text-gray-600 max-w-[12rem] truncate" title={art.descripcion}>
+                            {art.descripcion}
+                          </p>
+                        </td>
+                        <td className="p-4 w-28">
+                          {art.link ? (
+                            <a
+                              href={art.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline whitespace-nowrap"
+                            >
+                              Ver link
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">Sin link</span>
+                          )}
+                        </td>
+                        <td className="p-4 w-40">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button 
+                              onClick={() => seleccionarParaEditar(art)} 
+                              className="min-w-[88px] px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold text-xs md:text-sm transition-all shadow-md hover:shadow-lg"
+                            >
+                              Editar
+                            </button>
+                            <button 
+                              onClick={() => eliminarProducto(art.id)} 
+                              className="min-w-[88px] px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-xs md:text-sm transition-all shadow-md hover:shadow-lg"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Paginación */}
+              <div className="flex flex-col gap-3 px-4 py-3 border-t border-gray-200 md:flex-row md:items-center md:justify-between text-sm">
+                <p className="text-gray-600">
+                  Mostrando{' '}
+                  {articulosFiltrados.length === 0 ? 0 : indiceInicio + 1}
+                  {'–'}
+                  {Math.min(indiceInicio + ITEMS_POR_PAGINA, articulosFiltrados.length)} de {articulosFiltrados.length} productos
+                </p>
+                <div className="inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
+                    disabled={paginaSegura === 1}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+                      paginaSegura === 1
+                        ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                    aria-label="Página anterior"
+                  >
+                    Anterior
+                  </button>
+                  <span className="text-gray-600 text-xs">
+                    Página {paginaSegura} de {totalPaginas}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual((prev) => Math.min(totalPaginas, prev + 1))}
+                    disabled={paginaSegura === totalPaginas || articulosFiltrados.length === 0}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+                      paginaSegura === totalPaginas || articulosFiltrados.length === 0
+                        ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                    aria-label="Página siguiente"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
             </>
           )}
         </div>
